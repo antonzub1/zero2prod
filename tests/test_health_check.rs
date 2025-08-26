@@ -1,18 +1,33 @@
 use std::net::TcpListener;
-use serde_json::json;
+use std::sync::LazyLock;
 
+use serde_json::json;
 use sqlx::PgPool;
 use zero2prod::routes::User;
 use zero2prod::startup::run;
+use zero2prod::telemetry::{get_subscriber, init_subscriber};
 
 pub struct TestApp {
     pub address: String,
-    pub pool: PgPool
+    pub pool: PgPool,
 }
 
+static TRACING: LazyLock<()> = LazyLock::new(|| {
+    let default_level = String::from("info");
+    let subscriber_name = String::from("test");
+    if std::env::var("TEST_LOG").is_ok() {
+        let subscriber = get_subscriber(subscriber_name, default_level, std::io::stdout);
+        init_subscriber(subscriber);
+    } else {
+        let subscriber = get_subscriber(subscriber_name, default_level, std::io::stdout);
+        init_subscriber(subscriber);
+    }
+});
+
 async fn spawn_app(pool: PgPool) -> TestApp {
-    let listener = TcpListener::bind("127.0.0.1:0")
-        .expect("Failed to bind a random port.");
+    LazyLock::force(&TRACING);
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind a random port.");
     let port = listener.local_addr().unwrap().port();
     let server = run(listener, pool.clone()).expect("Failed to bind an address.");
 
@@ -21,7 +36,7 @@ async fn spawn_app(pool: PgPool) -> TestApp {
 
     TestApp {
         address,
-        pool: pool
+        pool: pool,
     }
 }
 
@@ -49,7 +64,7 @@ async fn test_subscribe_ok(pool: PgPool) {
 
     let payload = User {
         name: "Ursula Le Guin".into(),
-        email: "ursula_le_guin@gmail.com".into()
+        email: "ursula_le_guin@gmail.com".into(),
     };
 
     let response = client
@@ -71,7 +86,6 @@ async fn test_subscribe_ok(pool: PgPool) {
     assert_eq!(saved.name, payload.name);
 }
 
-
 #[sqlx::test]
 async fn test_subscribe_fail(pool: PgPool) {
     let app = spawn_app(pool).await;
@@ -89,4 +103,3 @@ async fn test_subscribe_fail(pool: PgPool) {
 
     assert_eq!(400, response.status().as_u16());
 }
-
