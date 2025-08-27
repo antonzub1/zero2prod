@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 
 use serde_json::json;
 use sqlx::PgPool;
-use zero2prod::routes::User;
+use zero2prod::routes::UserRequest;
 use zero2prod::startup::run;
 use zero2prod::telemetry::{get_subscriber, init_subscriber};
 
@@ -62,7 +62,7 @@ async fn test_subscribe_ok(pool: PgPool) {
 
     let client = reqwest::Client::new();
 
-    let payload = User {
+    let payload = UserRequest {
         name: "Ursula Le Guin".into(),
         email: "ursula_le_guin@gmail.com".into(),
     };
