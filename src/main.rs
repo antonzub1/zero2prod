@@ -6,7 +6,8 @@ use zero2prod::startup::run;
 use zero2prod::telemetry::{get_subscriber, init_subscriber};
 
 #[tokio::main]
-async fn main() -> Result<(), std::io::Error> {
+async fn main() -> color_eyre::Result<()> {
+    color_eyre::install()?;
     let subscriber = get_subscriber("zero2prod".into(), "info".into(), std::io::stdout);
     init_subscriber(subscriber);
 
@@ -17,5 +18,5 @@ async fn main() -> Result<(), std::io::Error> {
         config.database.connection_options()
     );
 
-    run(listener, pool)?.await
+    Ok(run(listener, pool)?.await?)
 }

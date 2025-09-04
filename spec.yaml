@@ -33,8 +33,8 @@ services:
         scope: RUN_TIME
         value: ${newsletter.DATABASE}
 databases:
-  #NOTE: add IP to trusted ources
   - engine: PG
     name: newsletter
+    production: true
     num_nodes: 1
     version: "17"
