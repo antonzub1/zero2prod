@@ -1,6 +1,6 @@
 use actix_web::web::{Data, Json};
 use actix_web::{HttpResponse, Responder};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -13,7 +13,10 @@ pub struct UserRequest {
 
 #[derive(Deserialize, Serialize)]
 pub struct UserResponse {
-    user_id: Uuid
+    id: Uuid,
+    name: String,
+    email: String,
+    subscribed_at: DateTime<Utc>,
 }
 
 #[tracing::instrument(
@@ -26,15 +29,17 @@ pub struct UserResponse {
 )]
 pub async fn subscribe(user: Json<UserRequest>, pool: Data<PgPool>) -> impl Responder {
     match create_subscriber(&pool, &user).await {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(_) => HttpResponse::InternalServerError().finish(),
+        Ok(user) => HttpResponse::Ok().json(user),
+        Err(_) => HttpResponse::InternalServerError().body("Failed to create a user"),
     }
 }
 
 #[tracing::instrument(name = "Saving new user to the database.", skip(user, pool))]
 pub async fn create_subscriber(pool: &PgPool, user: &UserRequest) -> Result<UserResponse, sqlx::Error> {
     let record = sqlx::query!(
-        r#"insert into subscriptions (id, email, name, subscribed_at) values ($1, $2, $3, $4) returning id"#,
+        r#"insert into subscriptions (id, email, name, subscribed_at)
+        values ($1, $2, $3, $4)
+        returning id, email, name, subscribed_at"#,
         Uuid::new_v4(),
         user.email,
         user.name,
@@ -47,6 +52,10 @@ pub async fn create_subscriber(pool: &PgPool, user: &UserRequest) -> Result<User
         e
     })?;
     Ok(UserResponse {
-        user_id: record.id
+        id: record.id,
+        name: record.name,
+        email: record.email,
+        subscribed_at: record.subscribed_at
+
     })
 }
