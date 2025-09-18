@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 
 use serde_json::json;
 use sqlx::PgPool;
-use zero2prod::routes::UserRequest;
+use zero2prod::domain::{UserName, UserRequest};
 use zero2prod::startup::run;
 use zero2prod::telemetry::{get_subscriber, init_subscriber};
 
@@ -63,7 +63,7 @@ async fn test_subscribe_ok(pool: PgPool) {
     let client = reqwest::Client::new();
 
     let payload = UserRequest {
-        name: "Ursula Le Guin".into(),
+        name: UserName::parse("Ursula Le Guin".into()).unwrap(),
         email: "ursula_le_guin@gmail.com".into(),
     };
 
@@ -83,11 +83,11 @@ async fn test_subscribe_ok(pool: PgPool) {
         .expect("Failed to fetch saved subscription.");
 
     assert_eq!(saved.email, payload.email);
-    assert_eq!(saved.name, payload.name);
+    assert_eq!(&saved.name, payload.name.as_ref());
 }
 
 #[sqlx::test]
-async fn test_subscribe_fail(pool: PgPool) {
+async fn test_subscribe_fail_with_empty_payload(pool: PgPool) {
     let app = spawn_app(pool).await;
 
     let client = reqwest::Client::new();
@@ -103,3 +103,42 @@ async fn test_subscribe_fail(pool: PgPool) {
 
     assert_eq!(400, response.status().as_u16());
 }
+
+#[sqlx::test]
+async fn test_subscribe_fail_with_invalid_name(pool: PgPool) {
+    let app = spawn_app(pool).await;
+
+    let client = reqwest::Client::new();
+
+    let payload = json!({"name": "<Antonio", "email": "testmail+zero2prod@gmail.com"});
+    let response = client
+        .post(format!("{}/subscribe", app.address))
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()
+        .await
+        .expect("Failed to send a request.");
+
+    assert_eq!(400, response.status().as_u16());
+}
+
+
+#[sqlx::test]
+async fn test_subscribe_fail_with_empty_name(pool: PgPool) {
+    let app = spawn_app(pool).await;
+
+    let client = reqwest::Client::new();
+
+    let payload = json!({"name": "", "email": "testmail+zero2prod@gmail.com"});
+    let response = client
+        .post(format!("{}/subscribe", app.address))
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()
+        .await
+        .expect("Failed to send a request.");
+
+    assert_eq!(400, response.status().as_u16());
+}
+
+

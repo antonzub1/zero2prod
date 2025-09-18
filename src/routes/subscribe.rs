@@ -1,23 +1,10 @@
 use actix_web::web::{Data, Json};
 use actix_web::{HttpResponse, Responder};
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use chrono::Utc;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-#[derive(Deserialize, Serialize)]
-pub struct UserRequest {
-    pub name: String,
-    pub email: String,
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct UserResponse {
-    id: Uuid,
-    name: String,
-    email: String,
-    subscribed_at: DateTime<Utc>,
-}
+use crate::domain::{UserRequest, UserResponse};
 
 #[tracing::instrument(
     name="Adding a new subscriber.",
@@ -42,7 +29,7 @@ pub async fn create_subscriber(pool: &PgPool, user: &UserRequest) -> Result<User
         returning id, email, name, subscribed_at"#,
         Uuid::new_v4(),
         user.email,
-        user.name,
+        user.name.as_ref(),
         Utc::now()
     )
     .fetch_one(pool)
@@ -56,6 +43,5 @@ pub async fn create_subscriber(pool: &PgPool, user: &UserRequest) -> Result<User
         name: record.name,
         email: record.email,
         subscribed_at: record.subscribed_at
-
     })
 }

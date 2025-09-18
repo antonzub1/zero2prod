@@ -38,3 +38,4 @@ databases:
     production: true
     num_nodes: 1
     version: "17"
+    cluster_name: "app-d37c6188-4b85-47c4-a5ea-1578457cc12d"
